@@ -6,6 +6,12 @@ import { StockInfo } from '@/lib/stockSearch';
 import { saveNewsSummary, getNewsSummariesByDateRange } from '@/lib/newsSummaryManager';
 import { StockNewsSummary } from '@/lib/supabase';
 
+type SearchResult = {
+  code: string;
+  name: string;
+  market: string;
+};
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +25,9 @@ export default function Home() {
   const [stockCode, setStockCode] = useState<string>('');
   const [startPage, setStartPage] = useState<number>(1);
   const [endPage, setEndPage] = useState<number>(3);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +134,24 @@ export default function Home() {
       setSavedSummaries(summaries);
     } catch (err) {
       console.error('저장된 요약 조회 중 오류:', err);
+    }
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/search-stock?query=${encodeURIComponent(searchQuery.trim())}`);
+      if (!response.ok) throw new Error('검색 중 오류가 발생했습니다.');
+      
+      const data = await response.json();
+      setSearchResults(data.stocks);
+    } catch (err) {
+      console.error('종목 검색 중 오류:', err);
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -272,6 +299,52 @@ export default function Home() {
             )}
           </div>
         )}
+
+        {/* 종목 검색 섹션 */}
+        <div className="mt-12 border-t pt-8">
+          <h2 className="text-2xl font-bold mb-4">종목 검색</h2>
+          <form onSubmit={handleSearch} className="mb-4">
+            <div className="flex gap-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="종목코드 또는 종목명을 입력하세요"
+                className="border p-2 rounded flex-1"
+              />
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
+              >
+                {isSearching ? '검색 중...' : '검색'}
+              </button>
+            </div>
+          </form>
+
+          {searchResults.length > 0 && (
+            <div className="bg-white rounded shadow">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목코드</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목명</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시장</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {searchResults.map((stock) => (
+                    <tr key={stock.code} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.code}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.market}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
