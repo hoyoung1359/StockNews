@@ -69,8 +69,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ message: '✅ 종목명까지 포함하여 정상 등록됨', count: items.length });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('서버 오류:', e);
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    return NextResponse.json({ error: e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.' }, { status: 500 });
   }
 }

@@ -25,7 +25,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-  const [discussionItems, setDiscussionItems] = useState<DiscussionItem[]>([]);
   const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
   const [summary, setSummary] = useState('');
   const [saveDate, setSaveDate] = useState('');
@@ -108,7 +107,6 @@ export default function Home() {
         }
 
         const data = await response.json();
-        setDiscussionItems(data.discussionItems);
         setStockInfo(data.stockInfo);
 
         // 게시글 요약 요청
