@@ -4,10 +4,11 @@ import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function AuthPage() {
   const router = useRouter()
+  const [redirectUrl, setRedirectUrl] = useState('')
 
   useEffect(() => {
     // 현재 세션 확인
@@ -24,6 +25,9 @@ export default function AuthPage() {
       }
     })
 
+    // 클라이언트 사이드에서만 실행
+    setRedirectUrl(window.location.origin)
+
     return () => subscription.unsubscribe()
   }, [router])
 
@@ -36,24 +40,26 @@ export default function AuthPage() {
           </h2>
         </div>
         <div className="mt-8 bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            providers={['google']}
-            redirectTo={`${window.location.origin}`} // 로그인 성공 후 리다이렉션 URL
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: '이메일',
-                  password_label: '비밀번호',
+          {redirectUrl && (
+            <Auth
+              supabaseClient={supabase}
+              appearance={{ theme: ThemeSupa }}
+              providers={['google']}
+              redirectTo={redirectUrl}
+              localization={{
+                variables: {
+                  sign_in: {
+                    email_label: '이메일',
+                    password_label: '비밀번호',
+                  },
+                  sign_up: {
+                    email_label: '이메일',
+                    password_label: '비밀번호',
+                  },
                 },
-                sign_up: {
-                  email_label: '이메일',
-                  password_label: '비밀번호',
-                },
-              },
-            }}
-          />
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
