@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
@@ -10,14 +9,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-interface StockData {
+type StockItem = {
   code: string;
   name: string;
   market: string;
-  [key: string]: string | number;
-}
+};
 
-function parseLine(line: string): StockData | null {
+function parseLine(line: string): StockItem | null {
   if (line.length < 70) return null;
 
   // 종목코드는 6자리로 고정되어 있음
@@ -38,8 +36,8 @@ function parseLine(line: string): StockData | null {
   };
 }
 
-function deduplicateByCode(items: StockData[]): StockData[] {
-  const map = new Map<string, StockData>();
+function deduplicateByCode(items: StockItem[]): StockItem[] {
+  const map = new Map<string, StockItem>();
   for (const item of items) {
     map.set(item.code, item);
   }
@@ -53,13 +51,13 @@ export async function GET() {
     const raw = iconv.decode(buffer, 'cp949');
     const lines = raw.split('\n');
 
-    const stocks: StockData[] = [];
+    const parsedItems: StockItem[] = [];
     for (const line of lines) {
       const item = parseLine(line);
-      if (item) stocks.push(item);
+      if (item) parsedItems.push(item);
     }
 
-    const items = deduplicateByCode(stocks);
+    const items = deduplicateByCode(parsedItems);
 
     const { error } = await supabase.from('stock_master').upsert(items, {
       onConflict: 'code',

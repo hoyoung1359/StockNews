@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Browser, Page } from 'puppeteer';
 import puppeteer from 'puppeteer';
 import * as cheerio from 'cheerio';

@@ -25,7 +25,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [discussionItems, setDiscussionItems] = useState<DiscussionItem[]>([]);
   const [stockInfo, setStockInfo] = useState<StockInfo | null>(null);
   const [summary, setSummary] = useState('');
