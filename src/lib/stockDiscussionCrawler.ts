@@ -1,6 +1,5 @@
 import { Page } from 'puppeteer';
 import puppeteer from 'puppeteer';
-import * as cheerio from 'cheerio';
 
 export interface DiscussionItem {
   title: string;

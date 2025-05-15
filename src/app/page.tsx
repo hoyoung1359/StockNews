@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { NewsItem } from '@/lib/newsCrawler';
-import { DiscussionItem } from '@/lib/stockDiscussionCrawler';
 import { StockInfo } from '@/lib/stockSearch';
 import { saveNewsSummary, getNewsSummariesByDateRange } from '@/lib/newsSummaryManager';
 import { StockNewsSummary } from '@/lib/supabase';
