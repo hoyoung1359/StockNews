@@ -1,4 +1,4 @@
-import { Browser, Page } from 'puppeteer';
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import puppeteer from 'puppeteer';
 import * as cheerio from 'cheerio';
 
