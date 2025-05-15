@@ -5,6 +5,8 @@ import { NewsItem } from '@/lib/newsCrawler';
 import { StockInfo } from '@/lib/stockSearch';
 import { saveNewsSummary, getNewsSummariesByDateRange } from '@/lib/newsSummaryManager';
 import { StockNewsSummary } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 type SearchResult = {
   code: string;
@@ -13,6 +15,7 @@ type SearchResult = {
 };
 
 export default function Home() {
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
@@ -155,35 +158,71 @@ export default function Home() {
     }
   };
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center">로딩 중...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">StockNews에 오신 것을 환영합니다</h1>
+          <p className="mb-4">서비스를 이용하시려면 로그인이 필요합니다.</p>
+          <a
+            href="/auth"
+            className="inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
+          >
+            로그인하기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">삼성전자 뉴스 분석기</h1>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">
+              {user.email}님 환영합니다
+            </span>
             <button
-              onClick={() => setViewMode('analyze')}
-              className={`px-4 py-2 rounded ${
-                viewMode === 'analyze'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200'
-              }`}
+              onClick={handleSignOut}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
             >
-              뉴스 분석
+              로그아웃
             </button>
-            <button
-              onClick={() => {
-                setViewMode('view');
-                loadSavedSummaries();
-              }}
-              className={`px-4 py-2 rounded ${
-                viewMode === 'view'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200'
-              }`}
-            >
-              저장된 요약
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setViewMode('analyze')}
+                className={`px-4 py-2 rounded ${
+                  viewMode === 'analyze'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200'
+                }`}
+              >
+                뉴스 분석
+              </button>
+              <button
+                onClick={() => {
+                  setViewMode('view');
+                  loadSavedSummaries();
+                }}
+                className={`px-4 py-2 rounded ${
+                  viewMode === 'view'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200'
+                }`}
+              >
+                저장된 요약
+              </button>
+            </div>
           </div>
         </div>
 
