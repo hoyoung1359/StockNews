@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import * as iconv from 'iconv-lite';
 
 export interface DiscussionItem {
   title: string;
@@ -18,10 +19,12 @@ async function getDiscussionContent(url: string): Promise<string> {
       headers: {
         'Referer': 'https://finance.naver.com/',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
+      },
+      responseType: 'arraybuffer'
     });
     
-    const $ = cheerio.load(response.data);
+    const html = iconv.decode(response.data, 'EUC-KR');
+    const $ = cheerio.load(html);
     const content = $('#body, .view_content, .post_content, .post-view').text().trim();
     
     return content || '내용을 가져올 수 없습니다.';
@@ -48,15 +51,23 @@ export async function crawlNaverStockDiscussion(
     // 먼저 종목 메인 페이지 방문
     const mainUrl = `https://finance.naver.com/item/main.naver?code=${stockCode}`;
     console.log('종목 메인 페이지 접속:', mainUrl);
-    await axios.get(mainUrl, { headers });
+    await axios.get(mainUrl, { 
+      headers,
+      responseType: 'arraybuffer'
+    });
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
       const url = `https://finance.naver.com/item/board.naver?code=${stockCode}&page=${pageNum}`;
       console.log(`페이지 ${pageNum}/${endPage} 크롤링 시작:`, url);
 
-      const response = await axios.get(url, { headers });
-      const $ = cheerio.load(response.data);
+      const response = await axios.get(url, { 
+        headers,
+        responseType: 'arraybuffer'
+      });
+      
+      const html = iconv.decode(response.data, 'EUC-KR');
+      const $ = cheerio.load(html);
       
       const rows = $('table.type2 tr');
       console.log('발견된 행 개수:', rows.length);
