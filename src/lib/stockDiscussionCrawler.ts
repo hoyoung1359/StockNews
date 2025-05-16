@@ -1,5 +1,5 @@
-import { Page } from 'puppeteer';
-import puppeteer from 'puppeteer';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 export interface DiscussionItem {
   title: string;
@@ -12,28 +12,19 @@ export interface DiscussionItem {
   summary: string;
 }
 
-async function getDiscussionContent(page: Page, url: string): Promise<string> {
+async function getDiscussionContent(url: string): Promise<string> {
   try {
-    await page.setExtraHTTPHeaders({
-      'Referer': 'https://finance.naver.com/',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    const response = await axios.get(url, {
+      headers: {
+        'Referer': 'https://finance.naver.com/',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
     });
     
-    console.log('게시글 페이지 접속:', url);
-    await page.goto(url, { 
-      waitUntil: 'networkidle0',
-      timeout: 60000
-    });
+    const $ = cheerio.load(response.data);
+    const content = $('#body, .view_content, .post_content, .post-view').text().trim();
     
-    const content = await page.evaluate(() => {
-      const contentElement = document.querySelector('#body') || 
-                           document.querySelector('.view_content') ||
-                           document.querySelector('.post_content') ||
-                           document.querySelector('.post-view');
-      return contentElement?.textContent?.trim() || '';
-    });
-    
-    return content;
+    return content || '내용을 가져올 수 없습니다.';
   } catch (error) {
     console.error('게시글 본문 크롤링 실패:', error);
     return '내용을 가져올 수 없습니다.';
@@ -45,108 +36,77 @@ export async function crawlNaverStockDiscussion(
   startPage: number,
   endPage: number
 ): Promise<DiscussionItem[]> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
-  const page = await browser.newPage();
-  
-  // 타임아웃 설정
-  page.setDefaultNavigationTimeout(60000);
-  page.setDefaultTimeout(60000);
-  
-  await page.setExtraHTTPHeaders({
+  const discussionItems: DiscussionItem[] = [];
+  const headers = {
     'Referer': 'https://finance.naver.com/',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
-  });
-
-  const discussionItems: DiscussionItem[] = [];
+  };
 
   try {
     // 먼저 종목 메인 페이지 방문
     const mainUrl = `https://finance.naver.com/item/main.naver?code=${stockCode}`;
     console.log('종목 메인 페이지 접속:', mainUrl);
-    await page.goto(mainUrl, { 
-      waitUntil: 'networkidle0',
-      timeout: 60000
-    });
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await axios.get(mainUrl, { headers });
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     for (let pageNum = startPage; pageNum <= endPage; pageNum++) {
-      // 종목토론방 URL 수정
       const url = `https://finance.naver.com/item/board.naver?code=${stockCode}&page=${pageNum}`;
       console.log(`페이지 ${pageNum}/${endPage} 크롤링 시작:`, url);
 
-      await page.goto(url, { 
-        waitUntil: 'networkidle0',
-        timeout: 60000
-      });
+      const response = await axios.get(url, { headers });
+      const $ = cheerio.load(response.data);
       
-      // 페이지 HTML 구조 디버깅
-      const pageContent = await page.content();
-      console.log('페이지 HTML 구조:', pageContent.substring(0, 500) + '...');
+      const rows = $('table.type2 tr');
+      console.log('발견된 행 개수:', rows.length);
       
-      const pageDiscussionItems = await page.evaluate(() => {
-        const items: DiscussionItem[] = [];
+      rows.each((index, row) => {
+        if ($(row).find('th').length || $(row).find('td[colspan]').length) {
+          console.log(`헤더/빈 행 ${index} 건너뛰기`);
+          return;
+        }
         
-        // 게시글 목록 선택자 수정
-        const rows = document.querySelectorAll('table.type2 tr');
-        console.log('발견된 행 개수:', rows.length);
+        console.log(`행 ${index} 처리 시작`);
         
-        rows.forEach((row, index) => {
-          // 헤더 행과 빈 행 건너뛰기
-          if (row.querySelector('th') || row.querySelector('td[colspan]')) {
-            console.log(`헤더/빈 행 ${index} 건너뛰기`);
-            return;
-          }
-          
-          console.log(`행 ${index} 처리 시작`);
-          
-          // 게시글 정보 선택자 수정
-          const titleCell = row.querySelector('td.title');
-          const link = titleCell?.querySelector('a');
-          const dateCell = row.querySelector('td:first-child');
-          const authorCell = row.querySelector('td.p11');
-          const viewsCell = row.querySelector('td:nth-child(4)');
-          const likesCell = row.querySelector('td:nth-child(5)');
-          
-          console.log(`행 ${index} 데이터:`, {
-            title: titleCell?.textContent,
-            date: dateCell?.textContent,
-            author: authorCell?.textContent,
-            views: viewsCell?.textContent,
-            likes: likesCell?.textContent
-          });
-          
-          if (titleCell && link) {
-            const title = link.textContent?.trim() || '';
-            const href = link.getAttribute('href') || '';
-
-            if (title && href) {
-              items.push({
-                title,
-                content: '',
-                url: href.startsWith('http') ? href : `https://finance.naver.com${href}`,
-                date: dateCell?.textContent?.trim() || '',
-                author: authorCell?.textContent?.trim() || '',
-                views: parseInt(viewsCell?.textContent?.trim() || '0'),
-                likes: parseInt(likesCell?.textContent?.trim() || '0'),
-                summary: ''
-              });
-            }
-          }
+        const titleCell = $(row).find('td.title');
+        const link = titleCell.find('a');
+        const dateCell = $(row).find('td:first-child');
+        const authorCell = $(row).find('td.p11');
+        const viewsCell = $(row).find('td:nth-child(4)');
+        const likesCell = $(row).find('td:nth-child(5)');
+        
+        console.log(`행 ${index} 데이터:`, {
+          title: titleCell.text(),
+          date: dateCell.text(),
+          author: authorCell.text(),
+          views: viewsCell.text(),
+          likes: likesCell.text()
         });
         
-        return items;
+        if (titleCell.length && link.length) {
+          const title = link.text().trim();
+          const href = link.attr('href') || '';
+
+          if (title && href) {
+            discussionItems.push({
+              title,
+              content: '',
+              url: href.startsWith('http') ? href : `https://finance.naver.com${href}`,
+              date: dateCell.text().trim(),
+              author: authorCell.text().trim(),
+              views: parseInt(viewsCell.text().trim() || '0'),
+              likes: parseInt(likesCell.text().trim() || '0'),
+              summary: ''
+            });
+          }
+        }
       });
 
-      discussionItems.push(...pageDiscussionItems);
-      console.log(`페이지 ${pageNum}/${endPage}에서 ${pageDiscussionItems.length}개의 게시글 발견`);
+      console.log(`페이지 ${pageNum}/${endPage}에서 ${discussionItems.length}개의 게시글 발견`);
       
       if (pageNum < endPage) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
@@ -154,12 +114,12 @@ export async function crawlNaverStockDiscussion(
     console.log('게시글 본문 수집 시작...');
     for (const item of discussionItems) {
       try {
-        const content = await getDiscussionContent(page, item.url);
+        const content = await getDiscussionContent(item.url);
         item.content = content;
       } catch (error) {
         console.error(`본문 수집 실패: ${item.title}`, error);
       }
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     console.log(`총 ${discussionItems.length}개의 게시글 수집 완료 (${endPage - startPage + 1}페이지)`);
@@ -167,7 +127,5 @@ export async function crawlNaverStockDiscussion(
   } catch (error) {
     console.error('게시글 크롤링 중 오류 발생:', error);
     return [];
-  } finally {
-    await browser.close();
   }
 } 
