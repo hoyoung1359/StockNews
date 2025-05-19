@@ -91,6 +91,9 @@ export async function POST(request: Request) {
 - 중장기적 관점
 - 주의해야 할 리스크 요인
 
+각 섹션은 명확하게 구분되어야 하며, 마크다운 문법이나 특수 기호를 사용하지 말고 일반 텍스트로 작성해주세요.
+각 항목은 들여쓰기와 줄바꿈을 사용하여 가독성을 높여주세요.
+
 게시글 목록:
 ${topItems.map((item: DiscussionItem) => `- ${item.title} (조회수: ${item.views}, 좋아요: ${item.likes})`).join('\n')}
 `;

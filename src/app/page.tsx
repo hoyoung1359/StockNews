@@ -32,6 +32,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedStock, setSelectedStock] = useState<SearchResult | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,6 +200,11 @@ export default function Home() {
     }
   };
 
+  const handleStockSelect = (stock: SearchResult) => {
+    setStockCode(stock.code);
+    setSelectedStock(stock);
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
   };
@@ -275,19 +281,86 @@ export default function Home() {
 
         {viewMode === 'analyze' ? (
           <div className="space-y-4 md:space-y-6">
-            {/* 검색 폼 */}
+            {/* 통합된 검색 폼 */}
             <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSearch} className="space-y-4">
                 <div className="flex flex-col gap-4">
                   <div className="flex gap-4">
                     <input
                       type="text"
-                      value={stockCode}
-                      onChange={(e) => setStockCode(e.target.value)}
-                      placeholder="종목코드를 입력하세요 (예: 005930)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="종목코드 또는 종목명을 입력하세요"
                       className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                    <button
+                      type="submit"
+                      disabled={isSearching}
+                      className="w-full sm:w-auto bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      {isSearching ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                          검색 중...
+                        </span>
+                      ) : (
+                        '검색'
+                      )}
+                    </button>
                   </div>
+
+                  {/* 검색 결과 */}
+                  {searchResults.length > 0 && (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목코드</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목명</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시장</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {searchResults.map((stock) => (
+                            <tr 
+                              key={stock.code} 
+                              className={`hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${
+                                selectedStock?.code === stock.code ? 'bg-blue-50' : ''
+                              }`}
+                              onClick={() => handleStockSelect(stock)}
+                            >
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{stock.code}</td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{stock.name}</td>
+                              <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{stock.market}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* 선택된 종목 정보 */}
+                  {selectedStock && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-2">선택된 종목</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">종목코드</p>
+                          <p className="font-medium">{selectedStock.code}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">종목명</p>
+                          <p className="font-medium">{selectedStock.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">시장</p>
+                          <p className="font-medium">{selectedStock.market}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 분석 옵션 */}
                   <div className="flex flex-col md:flex-row flex-wrap gap-4">
                     <div className="flex items-center gap-2 flex-1">
                       <label htmlFor="analysisType" className="text-sm font-medium text-gray-700 whitespace-nowrap">분석 유형:</label>
@@ -324,8 +397,9 @@ export default function Home() {
                       />
                     </div>
                     <button
-                      type="submit"
-                      disabled={loading}
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={loading || !selectedStock}
                       className="w-full md:w-auto bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       {loading ? (
@@ -373,8 +447,16 @@ export default function Home() {
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">
                   {analysisType === 'news' ? '뉴스 요약' : '종목토론방 요약'}
                 </h2>
-                <div className="prose max-w-none bg-gray-50 p-4 md:p-6 rounded-lg">
-                  {summary}
+                <div className="prose max-w-none bg-gray-50 p-4 md:p-6 rounded-lg whitespace-pre-line">
+                  {summary.split('\n').map((line, index) => {
+                    if (line.startsWith('1.') || line.startsWith('2.') || line.startsWith('3.')) {
+                      return <h3 key={index} className="text-lg font-semibold mt-4 mb-2">{line}</h3>;
+                    } else if (line.startsWith('-')) {
+                      return <p key={index} className="ml-4 mb-2">{line}</p>;
+                    } else {
+                      return <p key={index} className="mb-2">{line}</p>;
+                    }
+                  })}
                 </div>
                 <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <input
@@ -421,61 +503,6 @@ export default function Home() {
             )}
           </div>
         )}
-
-        {/* 종목 검색 섹션 */}
-        <div className="mt-8 bg-white rounded-lg shadow-sm p-4 md:p-6">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">종목 검색</h2>
-          <form onSubmit={handleSearch} className="mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="종목코드 또는 종목명을 입력하세요"
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="submit"
-                disabled={isSearching}
-                className="w-full sm:w-auto bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isSearching ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                    검색 중...
-                  </span>
-                ) : (
-                  '검색'
-                )}
-              </button>
-            </div>
-          </form>
-
-          {searchResults.length > 0 && (
-            <div className="overflow-x-auto -mx-4 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목코드</th>
-                      <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종목명</th>
-                      <th className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">시장</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {searchResults.map((stock) => (
-                      <tr key={stock.code} className="hover:bg-gray-50 transition-colors duration-200">
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.code}</td>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.name}</td>
-                        <td className="px-4 md:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{stock.market}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </main>
   );
