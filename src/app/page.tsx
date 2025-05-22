@@ -7,6 +7,7 @@ import { saveNewsSummary, getNewsSummariesByDateRange } from '@/lib/newsSummaryM
 import { StockNewsSummary } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import StockChart from '@/components/StockChart';
 
 type SearchResult = {
   code: string;
@@ -33,6 +34,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedStock, setSelectedStock] = useState<SearchResult | null>(null);
+  const [showChart, setShowChart] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,6 +205,7 @@ export default function Home() {
   const handleStockSelect = (stock: SearchResult) => {
     setStockCode(stock.code);
     setSelectedStock(stock);
+    setShowChart(false);
   };
 
   const handleSignOut = async () => {
@@ -422,7 +425,48 @@ export default function Home() {
               </div>
             )}
 
-            {stockInfo && (
+            {/* 선택된 종목에 대한 차트 버튼 */}
+            {selectedStock && (
+              <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800">종목 정보</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-500">종목명</p>
+                    <p className="font-medium">{selectedStock.name}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-500">종목코드</p>
+                    <p className="font-medium">{selectedStock.code}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-500">시장</p>
+                    <p className="font-medium">{selectedStock.market}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-center">
+                    <button
+                      onClick={() => setShowChart(!showChart)}
+                      className={`w-full py-2 rounded-lg transition-colors duration-200 ${
+                        showChart 
+                          ? 'bg-red-500 text-white hover:bg-red-600' 
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                    >
+                      {showChart ? '차트 숨기기' : '차트 보기'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 차트 표시 영역 */}
+            {selectedStock && showChart && (
+              <StockChart 
+                stockCode={selectedStock.code} 
+                stockName={selectedStock.name} 
+              />
+            )}
+
+            {/* {stockInfo && (
               <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">종목 정보</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -440,7 +484,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {summary && (
               <div className="bg-white rounded-lg shadow-sm p-4 md:p-6">
